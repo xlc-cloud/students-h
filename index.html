@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <title>南昌中心学生会成员账号管理</title>
+</head>
+
+<body class="bg-gray-100 font-sans">
+    <!-- 动态口令验证模态框 -->
+    <div id="verification-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center">
+        <div class="bg-white p-8 rounded-md shadow-md w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-4 text-center">身份验证</h2>
+            <p class="text-center mb-4">请于主机获取动态口令</p>
+            <input type="text" id="verification-code" class="border border-gray-300 p-2 w-full rounded-md mb-4" placeholder="输入动态口令">
+            <button id="verify-button" class="bg-blue-600 text-white px-4 py-2 rounded-md w-full hover:bg-blue-700">验证</button>
+        </div>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="bg-blue-600 p-4 text-white flex justify-between items-center hidden" id="nav-bar">
+        <h1 class="text-2xl font-bold">南昌中心学生会成员账号管理</h1>
+        <div>
+            <button id="logout-btn" class="bg-white text-blue-600 px-4 py-2 rounded-md hover:bg-blue-100 transition">退出登录</button>
+        </div>
+    </nav>
+
+    <!-- 侧边栏 -->
+    <div class="flex hidden" id="main-content">
+        <aside class="bg-gray-800 text-white w-64 h-screen p-4">
+            <ul>
+                <li class="mb-4">
+                    <a href="#" onclick="showDepartment('文体部')" class="hover:text-blue-400 transition">文体部</a>
+                </li>
+                <li class="mb-4">
+                    <a href="#" onclick="showDepartment('纪律部')" class="hover:text-blue-400 transition">纪律部</a>
+                </li>
+                <li class="mb-4">
+                    <a href="#" onclick="showDepartment('宣传部')" class="hover:text-blue-400 transition">宣传部</a>
+                </li>
+                <li class="mb-4">
+                    <a href="#" onclick="showDepartment('技术部')" class="hover:text-blue-400 transition">技术部</a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- 主内容区域 -->
+        <main class="p-8 w-full">
+            <h2 id="department-title" class="text-2xl font-bold mb-4">文体部成员账号管理</h2>
+            <button id="reset-password-btn" class="bg-yellow-500 text-white px-4 py-2 rounded-md mb-4 hover:bg-yellow-600 transition">全部恢复默认密码</button>
+            <table id="member-table" class="w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border border-gray-300 p-2">学生姓名</th>
+                        <th class="border border-gray-300 p-2">账号</th>
+                        <th class="border border-gray-300 p-2">权限</th>
+                        <th class="border border-gray-300 p-2">密码</th>
+                        <th class="border border-gray-300 p-2">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="member-body">
+                    <!-- 成员信息将通过 JavaScript 动态添加 -->
+                </tbody>
+            </table>
+        </main>
+    </div>
+
+    <script src="2/members.js"></script>
+    <script>
+        const defaultPassword = 'admin000';
+        const storageKey = 'studentAccountData';
+
+        function getInitials(name) {
+            const initials = name.split('').map(word => word[0]).join('').toLowerCase();
+            return `ncsz@${initials}`;
+        }
+
+        function saveToLocalStorage(data) {
+            localStorage.setItem(storageKey, JSON.stringify(data));
+        }
+
+        function getFromLocalStorage() {
+            const data = localStorage.getItem(storageKey);
+            return data ? JSON.parse(data) : {};
+        }
+
+        async function showDepartment(department) {
+            const departmentTitle = document.getElementById('department-title');
+            departmentTitle.textContent = `${department}成员账号管理`;
+
+            const memberBody = document.getElementById('member-body');
+            memberBody.innerHTML = '';
+
+            const names = members[department];
+            const storedData = getFromLocalStorage();
+            if (names) {
+                names.forEach(name => {
+                    const account = getInitials(name);
+                    const storedMember = storedData[account];
+                    const password = storedMember ? storedMember.password : defaultPassword;
+                    const role = storedMember ? storedMember.role : (() => {
+                        const defaultRoles = {
+                            "文体部": ["管理员", "组长", "组长"],
+                            "纪律部": ["管理员", "组长", "组长"],
+                            "宣传部": ["管理员", "组长", "组长"],
+                            "技术部": ["管理员", "组长", "组长"]
+                        };
+                        const index = names.indexOf(name);
+                        return index < defaultRoles[department].length ? defaultRoles[department][index] : '普通成员';
+                    })();
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border border-gray-300 p-2">${name}</td>
+                        <td class="border border-gray-300 p-2">${account}</td>
+                        <td class="border border-gray-300 p-2">
+                            <select class="border border-gray-300 p-1 rounded-md" onchange="updateRoleColor(this)">
+                                <option ${role === '普通成员' ? 'selected' : ''}>普通成员</option>
+                                <option ${role === '组长' ? 'selected' : ''}>组长</option>
+                                <option ${role === '管理员' ? 'selected' : ''}>管理员</option>
+                            </select>
+                        </td>
+                        <td class="border border-gray-300 p-2 relative">
+                            <input type="password" value="${password}" class="border border-gray-300 p-1 rounded-md w-full pr-8">
+                            <i class="fa-solid fa-eye absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer" onclick="togglePasswordVisibility(this)"></i>
+                        </td>
+                        <td class="border border-gray-300 p-2">
+                            <button class="bg-green-500 text-white px-2 py-1 rounded-md ml-2 hover:bg-green-600 transition" onclick="savePassword(this)">保存</button>
+                        </td>
+                    `;
+                    memberBody.appendChild(row);
+                    updateRoleColor(row.querySelector('select'));
+                });
+            }
+        }
+
+        function savePassword(button) {
+            const row = button.closest('tr');
+            const name = row.cells[0].textContent;
+            const account = getInitials(name);
+            const passwordInput = row.querySelector('input[type="password"]');
+            const roleSelect = row.querySelector('select');
+            const newPassword = passwordInput.value;
+            const newRole = roleSelect.value;
+
+            const storedData = getFromLocalStorage();
+            storedData[account] = {
+                password: newPassword,
+                role: newRole
+            };
+            saveToLocalStorage(storedData);
+
+            alert(`密码已更新为: ${newPassword}，权限已更新为: ${newRole}`);
+        }
+
+        function resetAllPasswords() {
+            const passwordInputs = document.querySelectorAll('#member-body input[type="password"]');
+            const roleSelects = document.querySelectorAll('#member-body select');
+            const storedData = getFromLocalStorage();
+
+            passwordInputs.forEach((input, index) => {
+                const row = input.closest('tr');
+                const name = row.cells[0].textContent;
+                const account = getInitials(name);
+                input.value = defaultPassword;
+                roleSelects[index].value = '普通成员';
+                storedData[account] = {
+                    password: defaultPassword,
+                    role: '普通成员'
+                };
+                updateRoleColor(roleSelects[index]);
+            });
+
+            saveToLocalStorage(storedData);
+            alert('所有密码已恢复为默认密码，权限已恢复为普通成员');
+        }
+
+        function logout() {
+            // 这里可以添加退出登录的逻辑，例如清除本地存储的登录信息等
+            alert('已退出登录');
+            // 重定向到登录页面
+            window.location.href = '2/login.html';
+        }
+
+        function togglePasswordVisibility(icon) {
+            const input = icon.previousElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function updateRoleColor(select) {
+            const row = select.closest('tr');
+            const role = select.value;
+            if (role === '管理员') {
+                row.style.backgroundColor = 'rgba(255, 204, 204, 0.5)';
+            } else if (role === '组长') {
+                row.style.backgroundColor = 'rgba(255, 255, 204, 0.5)';
+            } else {
+                row.style.backgroundColor = 'transparent';
+            }
+        }
+
+        function verifyCode() {
+            const codeInput = document.getElementById('verification-code');
+            const currentTime = new Date();
+            const hours = String(currentTime.getHours()).padStart(2, '0');
+            const minutes = String(currentTime.getMinutes()).padStart(2, '0');
+            const correctCode = hours + minutes;
+            if (codeInput.value === correctCode) {
+                document.getElementById('verification-modal').classList.add('hidden');
+                document.getElementById('nav-bar').classList.remove('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+            } else {
+                alert('动态口令验证失败！');
+                codeInput.value = '';
+            }
+        }
+
+        window.onload = function () {
+            const verifyButton = document.getElementById('verify-button');
+            verifyButton.addEventListener('click', verifyCode);
+            showDepartment('文体部');
+            const resetPasswordBtn = document.getElementById('reset-password-btn');
+            resetPasswordBtn.addEventListener('click', resetAllPasswords);
+            const logoutBtn = document.getElementById('logout-btn');
+            logoutBtn.addEventListener('click', logout);
+        };
+    </script>
+</body>
+
+</html>    
